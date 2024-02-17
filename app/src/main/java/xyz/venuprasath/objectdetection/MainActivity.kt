@@ -2,19 +2,25 @@ package xyz.venuprasath.objectdetection
 
 import android.Manifest.permission.CAMERA
 import android.Manifest.permission.RECORD_AUDIO
+import android.annotation.SuppressLint
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.Matrix
 import android.os.Bundle
 import android.util.Log
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageCapture.OnImageCapturedCallback
 import androidx.camera.core.ImageCaptureException
 import androidx.camera.core.ImageProxy
+import androidx.camera.video.FileOutputOptions
+import androidx.camera.video.Recording
+import androidx.camera.video.VideoRecordEvent
 import androidx.camera.view.CameraController
 import androidx.camera.view.LifecycleCameraController
+import androidx.camera.view.video.AudioConfig
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -26,6 +32,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Cameraswitch
 import androidx.compose.material.icons.filled.Photo
 import androidx.compose.material.icons.filled.PhotoCamera
+import androidx.compose.material.icons.filled.Videocam
 import androidx.compose.material3.BottomSheetScaffold
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -44,8 +51,12 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.launch
 import xyz.venuprasath.objectdetection.ui.theme.ObjectDetectionTheme
 import xyz.venuprasath.objectdetection.viewmodels.MainViewModel
+import java.io.File
 
 class MainActivity : ComponentActivity() {
+
+    private var recording: Recording? = null
+
     @OptIn(ExperimentalMaterial3Api::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -135,6 +146,14 @@ class MainActivity : ComponentActivity() {
                                     contentDescription = "Take a photo"
                                 )
                             }
+                            IconButton(onClick = {
+                                takeVideo(controller)
+                            }) {
+                                Icon(
+                                    imageVector = Icons.Default.Videocam,
+                                    contentDescription = "Capture Video"
+                                )
+                            }
                         }
                     }
                 }
@@ -142,10 +161,50 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    @SuppressLint("MissingPermission")
+    private fun takeVideo(
+        controller: LifecycleCameraController,
+    ) {
+        if(recording != null) {
+            recording?.stop()
+            recording = null
+            return
+        }
+        if(!hasRequiredPermissions()) return
+        val outputFile = File(filesDir, "test-recording.mp4")
+        recording = controller.startRecording(
+            FileOutputOptions.Builder(outputFile).build(),
+            AudioConfig.create(true),
+            ContextCompat.getMainExecutor(applicationContext)
+        ) { event ->
+            when(event) {
+                is VideoRecordEvent.Finalize -> {
+                    if(event.hasError()) {
+                        recording?.close()
+                        recording = null
+                        Toast.makeText(
+                            applicationContext,
+                            "Error saving video",
+                            Toast.LENGTH_SHORT)
+                            .show()
+                    } else {
+                        Toast.makeText(
+                            applicationContext,
+                            "Video saved successfully ",
+                            Toast.LENGTH_SHORT)
+                            .show()
+                    }
+                }
+            }
+        }
+
+    }
+
     private fun takePhoto(
         controller: LifecycleCameraController,
         onPhotoTaken: (Bitmap) -> Unit
     ) {
+        if(!hasRequiredPermissions()) return
         controller.takePicture(
             ContextCompat.getMainExecutor(applicationContext),
             object: OnImageCapturedCallback() {
