@@ -3,6 +3,7 @@ package xyz.venuprasath.objectdetection
 import android.Manifest.permission.CAMERA
 import android.Manifest.permission.RECORD_AUDIO
 import android.annotation.SuppressLint
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.Matrix
@@ -30,6 +31,7 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Cameraswitch
+import androidx.compose.material.icons.filled.Man
 import androidx.compose.material.icons.filled.Photo
 import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.Videocam
@@ -49,6 +51,7 @@ import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.launch
+import xyz.venuprasath.objectdetection.presentation.CameraPreview
 import xyz.venuprasath.objectdetection.ui.theme.ObjectDetectionTheme
 import xyz.venuprasath.objectdetection.viewmodels.MainViewModel
 import java.io.File
@@ -154,6 +157,18 @@ class MainActivity : ComponentActivity() {
                                     contentDescription = "Capture Video"
                                 )
                             }
+                            IconButton(onClick = {
+                                takePhoto(
+                                    controller = controller,
+                                    onPhotoTaken = viewModel::onTakePhoto,
+                                    true
+                                )
+                            }) {
+                                Icon(
+                                    imageVector = Icons.Default.Man,
+                                    contentDescription = "Scan"
+                                )
+                            }
                         }
                     }
                 }
@@ -202,7 +217,8 @@ class MainActivity : ComponentActivity() {
 
     private fun takePhoto(
         controller: LifecycleCameraController,
-        onPhotoTaken: (Bitmap) -> Unit
+        onPhotoTaken: (Bitmap) -> Unit,
+        aIScan: Boolean = false
     ) {
         if(!hasRequiredPermissions()) return
         controller.takePicture(
@@ -224,6 +240,10 @@ class MainActivity : ComponentActivity() {
                         true
                     )
                     onPhotoTaken(rotatedBitmap)
+                    if(aIScan) {
+                        val intent = Intent(this@MainActivity, AIActivity::class.java)
+                        this@MainActivity.startActivity(intent)
+                    }
                 }
 
                 override fun onError(exception: ImageCaptureException) {
